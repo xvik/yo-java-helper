@@ -1,0 +1,46 @@
+{
+  "name": "yo-java-helper",
+  "version": "1.0.0",
+  "description": "Yeoman helper for Java generators",
+  "license": "MIT",
+  "main": "src/index.js",
+  "homepage": "https://github.com/xvik/yo-java-helper",
+  "bugs": "https://github.com/xvik/yo-java-helper/issues",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/xvik/yo-java-helper.git"
+  },
+  "author": {
+    "name": "Vyacheslav Rusakov",
+    "email": "vyarus@gmail.com",
+    "url": "https://github.com/xvik"
+  },
+  "engines": {
+    "node": ">=4.1.1"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "yeoman",
+    "java"
+  ],
+  "dependencies": {
+    "chalk": "^1.1.1",
+    "configstore": "^1.3.0",
+    "github": "^0.2.4",
+    "glob": "^6.0.1",
+    "lodash": "^3.10.1",
+    "properties": "^1.2.1",
+    "underscore.string": "^3.2.2",
+    "user-home": "^2.0.0",
+    "yeoman-generator": "0.21.1"
+  },
+  "devDependencies": {
+    "mocha": "*",
+    "mocha-jshint": "2.2.5"
+  }
+}
