@@ -203,7 +203,7 @@ module.exports = class JavaGenerator extends Generator {
             /* jshint +W106 */
             const githubOptions = {
                 // debug: true,
-                protocol: "https"
+                protocol: 'https'
             };
 
             if (proxy) {
