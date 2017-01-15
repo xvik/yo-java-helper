@@ -1,6 +1,6 @@
 'use strict';
 
-var url = require('url'),
+const url = require('url'),
     _ = require('lodash'),
     userHome = require('user-home'),
     path = require('path'),
@@ -9,7 +9,8 @@ var url = require('url'),
     fs = require('fs'),
     _s = require('underscore.string'),
     chalk = require('chalk'),
-    glob = require('glob');
+    glob = require('glob'),
+    Generator = require('yeoman-generator');
 
 /**
  * Main features:
@@ -18,7 +19,7 @@ var url = require('url'),
  *  - Support for update mode (recognition)
  *  - Utilities to work with template (to avoid copying templates one by one)
  */
-class Helper {
+module.exports = class JavaGenerator extends Generator {
 
     /**
      * Fixed this.appname yeoman property from special characters, spaces and accents.
@@ -28,17 +29,20 @@ class Helper {
      * If generator appname property matches current folder then generate there, otherwise create new folder
      * and run generation in subfolder.
      *
-     * @param gen generator instance
+     * @param args arguments
+     * @param opts options
      * @param pkgJson loaded package.json (require('package.json'))
      * @constructor
      */
-    constructor(gen, pkgJson) {
-        this.pkgJson = pkgJson;
-        this.$ = gen;
-        // global configuration
-        this.globalConfig = new Configstore(pkgJson.name);
+    constructor(args, opts, pkgJson) {
+        super(args, opts);
+        // isolated helper scope with global configuration
+        this.$scope = {
+            pkgJson: pkgJson,
+            globalConfig: new Configstore(pkgJson.name)
+        };
         // yeoman replace '-' with space! fixing name
-        this.$.appname = this.folderName(this.$.appname);
+        this.appname = this.$folderName(this.appname);
     }
 
     // --------------------------------------------------------------- CONFIGS
@@ -63,19 +67,21 @@ class Helper {
      *
      * @param questions list of properties used as prompt properties
      */
-    initConfig(questions) {
+    $initConfig(questions) {
         // if all questions answered no need to ask again
-        var context = this.$.context = {
-            allAnswered: true,
-            updateMode: false,
-            pkg: this.pkgJson,
-            usedGeneratorVersion: this.$.config.get('usedGeneratorVersion')
-        };
+        const config = this.config,
+            context = this.context = {
+                allAnswered: true,
+                updateMode: false,
+                pkg: this.$scope.pkgJson,
+                usedGeneratorVersion: config.get('usedGeneratorVersion')
+            };
 
         // read stored configuration to not ask questions second time
         questions.forEach(name => {
-            this.$[name] = this.$.config.get(name);
-            if (_.isUndefined(this.$[name])) {
+            let val = config.get(name);
+            this[name] = val;
+            if (_.isUndefined(val)) {
                 context.allAnswered = false;
             } else {
                 // config exist
@@ -92,9 +98,9 @@ class Helper {
      * @param value default value
      * @return default value
      */
-    defaultValue(name, value) {
-        var localConfigValue = this.$.config.get(name);
-        return localConfigValue || this.globalConfig.get(name) || value;
+    $defaultValue(name, value) {
+        const localConfigValue = this.config.get(name);
+        return localConfigValue || this.$scope.globalConfig.get(name) || value;
     }
 
     /**
@@ -103,8 +109,8 @@ class Helper {
      * @param name property key
      * @param value property value
      */
-    storeGlobal(name, value) {
-        this.globalConfig.set(name, value);
+    $storeGlobal(name, value) {
+        this.$scope.globalConfig.set(name, value);
     }
 
     /**
@@ -113,10 +119,11 @@ class Helper {
      * @param props prompt answers
      * @param questions questions properties list
      */
-    applyAnswers(props, questions) {
+    $applyAnswers(props, questions) {
         questions.forEach(name => {
-            if (!_.isUndefined(props[name])) {
-                this.$[name] = props[name];
+            let val = props[name];
+            if (!_.isUndefined(val)) {
+                this[name] = val;
             }
         });
     }
@@ -126,17 +133,12 @@ class Helper {
      *
      * @param prompts prompts list
      * @param questions questions properties list
-     * @param callback optional callback
      */
-    prompt(prompts, questions, callback) {
-        var done = this.$.async();
-        this.$.prompt(prompts, props => {
-            this.applyAnswers(props, questions);
-            this.$.log(); // empty line
-            if (callback) {
-                callback(props);
-            }
-            done();
+    $prompt(prompts, questions) {
+        return this.prompt(prompts).then(props => {
+            this.$applyAnswers(props, questions);
+            this.log(); // empty line
+            return props;
         });
     }
 
@@ -150,16 +152,18 @@ class Helper {
      * @param questions questions properties list
      * @param globals global properties list
      */
-    saveConfiguration(questions, globals) {
+    $saveConfiguration(questions, globals) {
+        const config = this.config;
         // store yo-rc.json
-        this.$.config.save();
+        config.save();
         questions.forEach(name => {
-            this.$.config.set(name, this.$[name]);
-            if (_.contains(globals, name)) {
-                this.storeGlobal(name, this.$[name]);
+            let val = this[name];
+            config.set(name, val);
+            if (globals.includes(name)) {
+                this.$storeGlobal(name, val);
             }
         });
-        this.$.config.set('usedGeneratorVersion', this.$.context.pkg.version);
+        config.set('usedGeneratorVersion', this.context.pkg.version);
     }
 
     // -------------------------------------------------------------------------------- INIT
@@ -170,15 +174,14 @@ class Helper {
      * - date : today date, e.g. '1.12.2015' (useful for javadoc if using like @since date)
      * - reverseDate : reversed date. e.g. '2015-12-01' (useful fro changelog)
      */
-    initDateVars() {
+    $initDateVars() {
         // init date variables for templates
-        var d = new Date();
-        var month = d.getMonth() + 1;
-        var monthStr = this.twoDigits(month);
+        const d = new Date(),
+            monthStr = this.$twoDigits(d.getMonth() + 1);
 
-        this.$.year = d.getFullYear();
-        this.$.date = `${d.getDate()}.${monthStr}.${d.getFullYear()}`;
-        this.$.reverseDate = `${d.getFullYear()}-${monthStr}-${this.twoDigits(d.getDate())}`;
+        this.year = d.getFullYear();
+        this.date = `${d.getDate()}.${monthStr}.${d.getFullYear()}`;
+        this.reverseDate = `${d.getFullYear()}-${monthStr}-${this.$twoDigits(d.getDate())}`;
     }
 
     /**
@@ -192,29 +195,30 @@ class Helper {
      * @param inputUser user name
      * @param callback callback function with (err, res)
      */
-    getGithubData(inputUser, callback) {
-        if (!this.github) {
+    $getGithubData(inputUser, callback) {
+        if (!this.$scope.github) {
             /* jshint -W106 */
-            var proxy = process.env.http_proxy || process.env.HTTP_PROXY || process.env.https_proxy ||
+            const proxy = process.env.http_proxy || process.env.HTTP_PROXY || process.env.https_proxy ||
                 process.env.HTTPS_PROXY || null;
             /* jshint +W106 */
-            var githubOptions = {
-                version: '3.0.0'
+            const githubOptions = {
+                // debug: true,
+                protocol: "https"
             };
 
             if (proxy) {
-                var proxyUrl = url.parse(proxy);
+                const proxyUrl = url.parse(proxy);
                 githubOptions.proxy = {
                     host: proxyUrl.hostname,
                     port: proxyUrl.port
                 };
             }
 
-            var GitHubApi = require('github');
-            this.github = new GitHubApi(githubOptions);
+            const GitHubApi = require('github');
+            this.$scope.github = new GitHubApi(githubOptions);
         }
-        this.github.user.getFrom({
-            user: inputUser
+        this.$scope.github.users.getForUser({
+            username: inputUser
         }, (err, res) => {
             if (err) {
                 callback(`Cannot fetch your github profile ${chalk.red(inputUser)}. Make sure you\'ve typed it correctly.`);
@@ -233,7 +237,7 @@ class Helper {
      * @param num number
      * @returns {string} two digit number string
      */
-    twoDigits(num) {
+    $twoDigits(num) {
         return num < 10 ? `0${num}` : num;
     }
 
@@ -241,12 +245,12 @@ class Helper {
      * Converts free user input into valid folder name.
      * For example, user inputs 'some lib' then folder name will be 'some-lib'
      *
-     * Use slugify function to replace spaces and remove accents ans special characters.
+     * Use slugify function to replace spaces and remove accents and special characters.
      *
      * @param name free folder name
      * @returns {string} valid folder name
      */
-    folderName(name) {
+    $folderName(name) {
         return _s.slugify(name).toLowerCase();
     }
 
@@ -256,7 +260,7 @@ class Helper {
      * @param pkg package to validate
      * @returns true if package valid, false otherwise
      */
-    validatePackage(pkg) {
+    $validatePackage(pkg) {
         if (/^([a-z_]{1}[a-z0-9_]*(\.[a-z_]{1}[a-z0-9_]*)*)$/.test(pkg)) {
             return true;
         }
@@ -266,10 +270,10 @@ class Helper {
     /**
      * Selects if generation must be done in current folder or in new subfolder.
      */
-    selectTargetFolder() {
+    $selectTargetFolder() {
         // choose to generate in current folder or in subfolder (according to appname)
-        if (this.$.appname !== _.last(this.$.destinationRoot().split(path.sep))) {
-            this.$.destinationRoot(this.$.appname);
+        if (this.appname !== _.last(this.destinationRoot().split(path.sep))) {
+            this.destinationRoot(this.appname);
         }
     }
 
@@ -283,8 +287,8 @@ class Helper {
      *
      * @returns {string} project specific class prefix
      */
-    generateProjectClassPrefix(name) {
-        return _.capitalize(_.camelCase(this.folderName(name)));
+    $generateProjectClassPrefix(name) {
+        return _.upperFirst(_.camelCase(this.$folderName(name)));
     }
 
     /**
@@ -295,7 +299,7 @@ class Helper {
      * @param tagsInput comma separated tags string
      * @returns {string} quoted tags list
      */
-    quoteTagsList(tagsInput) {
+    $quoteTagsList(tagsInput) {
         return !tagsInput ? '' : tagsInput.split(/\s*,\s*/).map(tag => `'${tag.trim()}'`).join(', ');
     }
 
@@ -308,17 +312,17 @@ class Helper {
      * @param dir target directory
      * @param options (object) options to pass to generator
      */
-    runGenerator(genName, appname, dir, options) {
+    $runGenerator(genName, appname, dir, options) {
         // if this file will not be created in target dir yeoman will find parent file and complain
-        this.touch(dir + '/.yo-rc.json');
-        var opts = [genName, appname, '--skip-welcome-message']; // last one is specific for gulp-angular generator
+        this.$touch(dir + '/.yo-rc.json');
+        const opts = [genName, appname, '--skip-welcome-message']; // last one is specific for gulp-angular generator
         options.forEach((val, name) => opts.push('--' + name + '=' + val));
-        var setts = {stdio: 'inherit'};
+        const setts = {stdio: 'inherit'};
         if (dir) {
             setts.cwd = dir;
         }
-        var done = this.$.async();
-        this.$.spawnCommand('yo', opts, setts)
+        const done = this.async();
+        this.spawnCommand('yo', opts, setts)
             .on('close', () => done());
     }
 
@@ -330,9 +334,9 @@ class Helper {
      * @param filePath fle path relative to user home
      * @returns absolute path to file
      */
-    resolveFileFromUserHome(filePath) {
-        var targetPath = filePath;
-        var configFile = targetPath ? path.join(userHome, targetPath) : userHome;
+    $resolveFileFromUserHome(filePath) {
+        const targetPath = filePath,
+            configFile = targetPath ? path.join(userHome, targetPath) : userHome;
         return path.normalize(configFile);
     }
 
@@ -342,7 +346,7 @@ class Helper {
      * @param filePath absolute file path
      * @param callback callback for resolved properties
      */
-    readProperties(filePath, callback) {
+    $readProperties(filePath, callback) {
         if (fs.existsSync(filePath)) {
             properties.parse(filePath, {path: true}, (error, obj) => {
                 callback(error ? null : obj);
@@ -359,8 +363,8 @@ class Helper {
      * @param filePath path to banner file (relative to templates folder)
      * @returns {string} banner file as string
      */
-    readBanner(filePath) {
-        return fs.readFileSync(this.$.templatePath(filePath)).toString();
+    $readBanner(filePath) {
+        return fs.readFileSync(this.templatePath(filePath)).toString();
     }
 
     /**
@@ -369,8 +373,8 @@ class Helper {
      * @param filePath file path relative to generation directory
      * @returns true when file exists in generation directory
      */
-    exists(filePath) {
-        return fs.existsSync(this.$.destinationPath(filePath));
+    $exists(filePath) {
+        return fs.existsSync(this.destinationPath(filePath));
     }
 
     /**
@@ -378,9 +382,9 @@ class Helper {
      *
      * @param filePath
      */
-    touch(filePath) {
-        if (!this.exists(filePath)) {
-            fs.closeSync(fs.openSync(this.$.destinationPath(filePath), 'w'));
+    $touch(filePath) {
+        if (!this.$exists(filePath)) {
+            fs.closeSync(fs.openSync(this.destinationPath(filePath), 'w'));
         }
     }
 
@@ -389,8 +393,8 @@ class Helper {
      *
      * @param filePath target file path relative to generation folder.
      */
-    setExecutableFlag(filePath) {
-        fs.chmodSync(this.$.destinationPath(filePath), '755');
+    $setExecutableFlag(filePath) {
+        fs.chmodSync(this.destinationPath(filePath), '755');
     }
 
     // ----------------------------------------------------------------------------- TEMPLATES
@@ -406,8 +410,8 @@ class Helper {
      * @param dir templates source directory
      * @param options options object
      */
-    smartCopy(copyFn, dir, options) {
-        var opts = options || {};
+    $smartCopy(copyFn, dir, options) {
+        const opts = options || {};
         _.defaults(opts, {
             glob: '**',
             processDotfiles: true,
@@ -420,8 +424,8 @@ class Helper {
         if (!_s.endsWith(dir, '/')) {
             dir += '/';
         }
-        glob.sync(opts.glob, {cwd: this.$.templatePath(dir), nodir: true}).map(file => {
-            var targetFile = file;
+        glob.sync(opts.glob, {cwd: this.templatePath(dir), nodir: true}).map(file => {
+            let targetFile = file;
             if (opts.processDotfiles) {
                 targetFile = targetFile.replace(/^_|\/_/, '/.'); // replace _ to  .
             }
@@ -432,14 +436,14 @@ class Helper {
 
             opts.pathReplace.forEach(desc => targetFile = targetFile.replace(desc.regex, desc.replace));
 
-            var dest = this.$.destinationPath(targetFile);
-            if (_.contains(opts.writeOnceFiles, targetFile) && fs.existsSync(dest)) {
-                this.$.log(chalk.yellow('     skip ') + path.normalize(targetFile));
+            const dest = this.destinationPath(targetFile);
+            if (opts.writeOnceFiles.includes(targetFile) && fs.existsSync(dest)) {
+                this.log(chalk.yellow('     skip ') + path.normalize(targetFile));
                 return;
             }
-            var source = this.$.templatePath(dir + file);
+            const source = this.templatePath(dir + file);
             copyFn(source, dest);
-        }, this.$);
+        }, this);
     }
 
     /**
@@ -450,8 +454,8 @@ class Helper {
      * @param dir directory relative to templates folder
      * @param options smartCopy options (see above)
      */
-    copy(dir, options) {
-        this.smartCopy(this.$.fs.copy.bind(this.$.fs), dir, options);
+    $copy(dir, options) {
+        this.$smartCopy(this.fs.copy.bind(this.fs), dir, options);
     }
 
     /**
@@ -462,8 +466,8 @@ class Helper {
      * @param dir dir directory relative to templates folder
      * @param options smartCopy options (see above)
      */
-    copyTpl(dir, options) {
-        this.smartCopy((src, dest) => this.$.fs.copyTpl(src, dest, this.$), dir, options);
+    $copyTpl(dir, options) {
+        this.$smartCopy((src, dest) => this.fs.copyTpl(src, dest, this), dir, options);
     }
 
     /**
@@ -487,9 +491,9 @@ class Helper {
      * @param templatesDir directory with templates to copy, relative to templates dir
      * @param pathReplace optional array with additional pathReplace regexps (see smartCopy)
      */
-    copySources(basePackage, templatesDir, pathReplace) {
-        var packageFolder = basePackage.replace(/\./g, '/');
-        this.copyTpl(templatesDir, {
+    $copySources(basePackage, templatesDir, pathReplace) {
+        const packageFolder = basePackage.replace(/\./g, '/');
+        this.$copyTpl(templatesDir, {
             pathReplace: [
                 {regex: /(^|\/)package(\/|$)/, replace: '$1' + packageFolder + '$2'}
             ].concat(pathReplace || [])
@@ -506,11 +510,9 @@ class Helper {
      * @param templatesDir directory with templates to copy, relative to templates dir
      * @param pathReplace optional array with additional pathReplace regexps (see smartCopy)
      */
-    copySourcesRenamingProjectClasses(basePackage, templatesDir, pathReplace) {
-        this.copySources(basePackage, templatesDir, [
-            {regex: /\/Project/, replace: '/' + this.generateProjectClassPrefix(this.$.appname)}
+    $copySourcesRenamingProjectClasses(basePackage, templatesDir, pathReplace) {
+        this.$copySources(basePackage, templatesDir, [
+            {regex: /\/Project/, replace: '/' + this.$generateProjectClassPrefix(this.appname)}
         ].concat(pathReplace || []));
     }
-}
-
-module.exports = Helper;
+};
