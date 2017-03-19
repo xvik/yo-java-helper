@@ -1,4 +1,4 @@
-#Yeoman helper for Java generators
+# Yeoman helper for Java generators
 
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](http://www.opensource.org/licenses/MIT)
 [![NPM version](http://img.shields.io/npm/v/yo-java-helper.svg)](http://badge.fury.io/js/yo-java-helper)
