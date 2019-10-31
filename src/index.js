@@ -219,9 +219,9 @@ module.exports = class JavaGenerator extends Generator {
         }
         this.$scope.github.users.getByUsername({
             username: inputUser
-        }).then(({ data, headers, status }) => {
+        }).then(({data}) => {
             callback(null, JSON.parse(JSON.stringify(data)));
-        }).catch(err => {
+        }).catch(() => {
             callback(`Cannot fetch your github profile ${chalk.red(inputUser)}. Make sure you\'ve typed it correctly.`);
         });
     }
