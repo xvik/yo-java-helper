@@ -214,7 +214,7 @@ module.exports = class JavaGenerator extends Generator {
                 };
             }
 
-            const GitHubApi = require('github');
+            const GitHubApi = require('@octokit/rest');
             this.$scope.github = new GitHubApi(githubOptions);
         }
         this.$scope.github.users.getForUser({
