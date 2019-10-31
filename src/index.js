@@ -217,14 +217,12 @@ module.exports = class JavaGenerator extends Generator {
             const GitHubApi = require('@octokit/rest');
             this.$scope.github = new GitHubApi(githubOptions);
         }
-        this.$scope.github.users.getForUser({
+        this.$scope.github.users.getByUsername({
             username: inputUser
-        }, (err, res) => {
-            if (err) {
-                callback(`Cannot fetch your github profile ${chalk.red(inputUser)}. Make sure you\'ve typed it correctly.`);
-            } else {
-                callback(null, JSON.parse(JSON.stringify(res)));
-            }
+        }).then(({ data, headers, status }) => {
+            callback(null, JSON.parse(JSON.stringify(data)));
+        }).catch(err => {
+            callback(`Cannot fetch your github profile ${chalk.red(inputUser)}. Make sure you\'ve typed it correctly.`);
         });
     }
 
