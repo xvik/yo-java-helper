@@ -33,7 +33,7 @@
     "configstore": "5.0.0",
     "@octokit/rest": "16.34.1",
     "glob": "7.1.5",
-    "lodash": "4.17.19",
+    "lodash": "4.17.21",
     "properties": "1.2.1",
     "underscore.string": "3.3.5",
     "user-home": "2.0.0",
