@@ -2,7 +2,8 @@
 
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](http://www.opensource.org/licenses/MIT)
 [![NPM version](http://img.shields.io/npm/v/yo-java-helper.svg)](http://badge.fury.io/js/yo-java-helper)
-[![Build Status](https://secure.travis-ci.org/xvik/yo-java-helper.png)](https://travis-ci.org/xvik/yo-java-helper)
+[![Build Status](https://travis-ci.com/xvik/yo-java-helper.svg?branch=master)](https://travis-ci.com/xvik/yo-java-helper)
+
 
 ### About
 
