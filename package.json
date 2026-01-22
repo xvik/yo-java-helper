@@ -34,7 +34,7 @@
     "chalk": "4.1.1",
     "configstore": "3.1.5",
     "glob": "7.1.6",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "properties": "1.2.1",
     "underscore.string": "3.3.5",
     "user-home": "2.0.0",
